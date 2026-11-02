@@ -1,2 +1,51 @@
-<h 1>JumpVerse</h 1>
-<p>İlk parkur çok yakında.</p>
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>JumpVerse – İlk Parkur</title>
+<style>
+*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#8edcff;font-family:Arial,sans-serif;color:#fff}
+#hud{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2;background:#28215bbd;padding:10px 20px;border-radius:18px;text-align:center;min-width:220px}
+h1{margin:0;font-size:24px;color:#ffed70}#status{font-size:14px;margin-top:5px}
+#controls{position:fixed;bottom:20px;left:0;right:0;display:flex;justify-content:space-between;align-items:end;padding:0 20px;z-index:2;pointer-events:none}
+.pad{display:grid;grid-template-columns:repeat(3,53px);grid-template-rows:repeat(2,53px);gap:5px}
+button{pointer-events:auto;border:0;border-radius:14px;background:#5034c9dd;color:white;font-size:24px;font-weight:bold;touch-action:none;user-select:none}
+[data-key="ArrowUp"]{grid-column:2}[data-key="ArrowLeft"]{grid-column:1;grid-row:2}[data-key="ArrowDown"]{grid-column:2;grid-row:2}[data-key="ArrowRight"]{grid-column:3;grid-row:2}
+#jump{padding:20px;font-size:18px;background:#ef5a83}
+#hint{position:fixed;bottom:5px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:#302657}
+</style></head><body>
+<div id="hud"><h1>JUMPVERSE</h1><div id="status">Ok tuşları / WASD: Hareket • Boşluk: Zıpla</div></div>
+<div id="controls"><div class="pad"><button data-key="ArrowUp">▲</button><button data-key="ArrowLeft">◀</button><button data-key="ArrowDown">▼</button><button data-key="ArrowRight">▶</button></div><button id="jump" data-key="Space">ZIPLA</button></div>
+<div id="hint">Engellere dokunmadan sarı bitiş çizgisine ulaş!</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x8edcff);scene.fog=new THREE.Fog(0x8edcff,45,110);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,150);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x7c75a4,2));
+const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(-5,15,9);scene.add(sun);
+function block(w,h,d,color,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color}));m.position.set(x,y,z);scene.add(m);return m}
+block(10,1,72,0x43d6a2,0,-.5,-30);block(10,.08,.5,0xffffff,0,.05,1);
+const obstacles=[];
+for(let i=0;i<8;i++){const x=[-2.5,0,2.5,0,-2.5,2.5,0,-2.5][i];obstacles.push(block(1.6,1.25,1.4,0xff694e,x,.625,-7-i*7));}
+block(10,.08,1,0xffd83d,0,.06,-62);
+const player=new THREE.Group();
+const body=new THREE.Mesh(new THREE.CapsuleGeometry(.42,.9,5,12),new THREE.MeshStandardMaterial({color:0x7547ed}));body.position.y=.9;player.add(body);
+for(const x of [-.16,.16]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.09,12,12),new THREE.MeshStandardMaterial({color:0xffffff}));eye.position.set(x,1.27,-.38);player.add(eye);}
+scene.add(player);player.position.set(0,0,3);
+const keys={};const status=document.querySelector('#status');let vy=0,grounded=true,won=false;
+function reset(){player.position.set(0,0,3);vy=0;grounded=true;status.textContent='Engelden kaç! Tekrar dene.';}
+addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys[e.code]=true;});
+addEventListener('keyup',e=>{keys[e.code]=false;});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
+document.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[k]=true;});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>{keys[k]=false;});});
+let last=performance.now();
+function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.04);last=now;
+if(!won){let x=Number(!!(keys.ArrowRight||keys.KeyD))-Number(!!(keys.ArrowLeft||keys.KeyA));let z=Number(!!(keys.ArrowDown||keys.KeyS))-Number(!!(keys.ArrowUp||keys.KeyW));const l=Math.hypot(x,z)||1;
+player.position.x+=x/l*7*dt;player.position.z+=z/l*7*dt;
+if(keys.Space&&grounded){vy=8.5;grounded=false;}vy-=20*dt;player.position.y+=vy*dt;if(player.position.y<=0){player.position.y=0;vy=0;grounded=true;}
+if(Math.abs(player.position.x)>4.6||player.position.z>5)reset();
+for(const o of obstacles){if(Math.abs(player.position.x-o.position.x)<1.2&&Math.abs(player.position.z-o.position.z)<1.05&&player.position.y<1.25){reset();break;}}
+if(player.position.z<-62){won=true;status.textContent='🏆 Tebrikler! Parkuru tamamladın!';}}
+camera.position.lerp(new THREE.Vector3(player.position.x,player.position.y+5.5,player.position.z+10),.08);camera.lookAt(player.position.x,player.position.y+1,player.position.z-5);renderer.render(scene,camera);}
+requestAnimationFrame(frame);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+</script></body></html>
